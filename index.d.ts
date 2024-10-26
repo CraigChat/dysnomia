@@ -137,7 +137,8 @@ declare namespace Dysnomia {
   type InteractionDataOptionsUser = InteractionDataOption<"USER", string>;
   type InteractionDataOptionsWithOptions = InteractionDataOptionsSubCommand | InteractionDataOptionsSubCommandGroup;
   type InteractionDataOptionsWithValue = InteractionDataOptionsString | InteractionDataOptionsInteger | InteractionDataOptionsBoolean | InteractionDataOptionsUser | InteractionDataOptionsChannel | InteractionDataOptionsRole | InteractionDataOptionsMentionable | InteractionDataOptionsNumber;
-  type InteractionResponse = InteractionResponseAutocomplete | InteractionResponseDeferred | InteractionResponseMessage;
+  type InteractionResponse = InteractionResponseAutocomplete | InteractionResponseDeferred | InteractionResponseLaunchActivity | InteractionResponseMessage | InteractionResponsePong | InteractionResponsePremiumRequired;
+  type InteractionResponseTypes = Constants["InteractionResponseTypes"][keyof Constants["InteractionResponseTypes"]];
   type InteractionTypes = Constants["InteractionTypes"][keyof Constants["InteractionTypes"]];
 
   // Invite
@@ -1241,6 +1242,25 @@ declare namespace Dysnomia {
     values: string[];
     resolved?: InteractionResolvedData;
   }
+  interface InteractionCallbackResponse<T extends InteractionResponseTypes = InteractionResponseTypes> {
+    interaction: {
+      id: string;
+      type: InteractionTypes;
+      activity_instance_id?: string;
+      response_message_id?: string;
+      response_message_loading?: boolean;
+      response_message_ephemeral?: boolean;
+    };
+    resource: T extends Constants["InteractionResponseTypes"]["CHANNEL_MESSAGE_WITH_SOURCE" | "UPDATE_MESSAGE" | "LAUNCH_ACTIVITY"]
+      ? {
+        type: T;
+        activity_instance: T extends Constants["InteractionResponseTypes"]["LAUNCH_ACTIVITY"] ? ActivityInstance : never;
+        message: T extends Constants["InteractionResponseTypes"]["CHANNEL_MESSAGE_WITH_SOURCE" | "UPDATE_MESSAGE"] ? {
+          id: string;
+          [key: string]: unknown;
+        } : never;
+      } : never;
+  }
   interface InteractionDataOptionsBase<T extends ApplicationCommandOptionsTypes, V = unknown> {
     focused?: T extends ApplicationCommandOptionsTypesWithAutocomplete ? boolean : never;
     name: string;
@@ -1265,27 +1285,37 @@ declare namespace Dysnomia {
     roles?: Collection<Role>;
     users?: Collection<User>;
   }
-  interface InteractionResponseAutocomplete {
+  interface InteractionResponseAutocomplete extends InteractionResponseBase {
     data: ApplicationCommandOptionsChoice[];
     type: Constants["InteractionResponseTypes"]["APPLICATION_COMMAND_AUTOCOMPLETE_RESULT"];
   }
-  interface InteractionResponseDeferred {
+  interface InteractionResponseBase {
+    withResponse?: boolean;
+  }
+  interface InteractionResponseDeferred extends InteractionResponseBase {
     data?: {
       flags?: number;
     };
     type: Constants["InteractionResponseTypes"]["DEFERRED_UPDATE_MESSAGE" | "DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE"];
   }
-  interface InteractionResponseMessage {
+  interface InteractionResponseLaunchActivity extends InteractionResponseBase {
+    type: Constants["InteractionResponseTypes"]["LAUNCH_ACTIVITY"];
+  }
+  interface InteractionResponseMessage extends InteractionResponseBase {
     data: RawInteractionContent;
     type: Constants["InteractionResponseTypes"]["CHANNEL_MESSAGE_WITH_SOURCE" | "UPDATE_MESSAGE" | "PREMIUM_REQUIRED"];
   }
-  interface InteractionResponseModal {
+  interface InteractionResponseModal extends InteractionResponseBase {
     data: InteractionModalContent;
     type: Constants["InteractionResponseTypes"]["MODAL"];
 
   }
-  interface InteractionResponsePong {
+  interface InteractionResponsePong extends InteractionResponseBase {
     type: Constants["InteractionResponseTypes"]["PONG"];
+  }
+  /** @deprecated */
+  interface InteractionResponsePremiumRequired extends InteractionResponseBase {
+    type: Constants["InteractionResponseTypes"]["PREMIUM_REQUIRED"];
   }
 
   interface RawInteractionContent extends Pick<WebhookPayload, "content" | "embeds" | "tts" | "flags" | "components"> {
@@ -1926,6 +1956,11 @@ declare namespace Dysnomia {
   interface OAuthInstallParams {
     scopes: string[];
     permissions: string;
+  }
+
+  // Activities
+  interface ActivityInstance {
+    id: string;
   }
   /* eslint-disable @stylistic/key-spacing, @stylistic/no-multi-spaces */
   interface Constants {
@@ -2855,7 +2890,7 @@ declare namespace Dysnomia {
     createGuildScheduledEvent<T extends GuildScheduledEventEntityTypes>(guildID: string, event: GuildScheduledEventOptions<T>, reason?: string): Promise<GuildScheduledEvent<T>>;
     createGuildSticker(guildID: string, options: CreateStickerOptions, reason?: string): Promise<Sticker>;
     createGuildTemplate(guildID: string, name: string, description?: string | null): Promise<GuildTemplate>;
-    createInteractionResponse(interactionID: string, interactionToken: string, options: InteractionResponse, file?: FileContent | FileContent[]): Promise<void>;
+    createInteractionResponse<T extends InteractionResponse>(interactionID: string, interactionToken: string, options: T, file?: FileContent | FileContent[]): Promise<T["withResponse"] extends true ? InteractionCallbackResponse<T["type"]> : void>;
     createMessage(channelID: string, content: MessageContent<"hasNonce">): Promise<Message>;
     createRole(guildID: string, options?: RoleOptions, reason?: string): Promise<Role>;
     createRole(guildID: string, options?: Role, reason?: string): Promise<Role>;
@@ -3082,7 +3117,7 @@ declare namespace Dysnomia {
     user?: User;
     acknowledge(flags?: number): Promise<void>;
     createFollowup(content: string | InteractionContent): Promise<Message>;
-    createMessage(content: string | InteractionContent): Promise<void>;
+    createMessage(content: string | InteractionContent): Promise<Message>;
     createModal(content: InteractionModalContent): Promise<void>;
     defer(flags?: number): Promise<void>;
     deleteMessage(messageID: string): Promise<void>;
@@ -3090,7 +3125,7 @@ declare namespace Dysnomia {
     editMessage(messageID: string, content: string | InteractionContentEdit): Promise<Message>;
     editOriginalMessage(content: string | InteractionContentEdit): Promise<Message>;
     getOriginalMessage(): Promise<Message>;
-    launchActivity(): Promise<void>;
+    launchActivity(): Promise<ActivityInstance>;
     /** @deprecated */
     requirePremium(): Promise<void>;
   }
@@ -3106,7 +3141,7 @@ declare namespace Dysnomia {
     user?: User;
     acknowledge(): Promise<void>;
     createFollowup(content: string | InteractionContent): Promise<Message>;
-    createMessage(content: string | InteractionContent): Promise<void>;
+    createMessage(content: string | InteractionContent): Promise<Message>;
     createModal(content: InteractionModalContent): Promise<void>;
     defer(flags?: number): Promise<void>;
     deferUpdate(): Promise<void>;
@@ -3114,9 +3149,9 @@ declare namespace Dysnomia {
     deleteOriginalMessage(): Promise<void>;
     editMessage(messageID: string, content: string | InteractionContentEdit): Promise<Message>;
     editOriginalMessage(content: string | InteractionContentEdit): Promise<Message>;
-    editParent(content: InteractionContentEdit): Promise<void>;
+    editParent(content: InteractionContentEdit): Promise<Message>;
     getOriginalMessage(): Promise<Message>;
-    launchActivity(): Promise<void>;
+    launchActivity(): Promise<ActivityInstance>;
     /** @deprecated */
     requirePremium(): Promise<void>;
   }
@@ -3649,16 +3684,16 @@ declare namespace Dysnomia {
     user?: User;
     acknowledge(): Promise<void>;
     createFollowup(content: string | InteractionContent): Promise<Message>;
-    createMessage(content: string | InteractionContent): Promise<void>;
+    createMessage(content: string | InteractionContent): Promise<Message>;
     defer(flags?: number): Promise<void>;
     deferUpdate(): Promise<void>;
     deleteMessage(messageID: string): Promise<void>;
     deleteOriginalMessage(): Promise<void>;
     editMessage(messageID: string, content: string | InteractionContentEdit): Promise<Message>;
     editOriginalMessage(content: string | InteractionContentEdit): Promise<Message>;
-    editParent(content: InteractionContentEdit): Promise<void>;
+    editParent(content: InteractionContentEdit): Promise<Message>;
     getOriginalMessage(): Promise<Message>;
-    launchActivity(): Promise<void>;
+    launchActivity(): Promise<ActivityInstance>;
     /** @deprecated */
     requirePremium(): Promise<void>;
   }
