@@ -107,6 +107,9 @@ declare namespace Dysnomia {
   type GuildScheduledEventEditOptions<T extends GuildScheduledEventEntityTypes> = GuildScheduledEventEditOptionsExternal | GuildScheduledEventEditOptionsDiscord | GuildScheduledEventEditOptionsBase<T>;
   type GuildScheduledEventOptions<T extends GuildScheduledEventEntityTypes> = GuildScheduledEventOptionsExternal | GuildScheduledEventOptionsDiscord | GuildScheduledEventOptionsBase<T>;
   type GuildScheduledEventEntityTypes = Constants["GuildScheduledEventEntityTypes"][keyof Constants["GuildScheduledEventEntityTypes"]];
+  type GuildScheduledEventRecurrenceRuleFrequency = Constants["GuildScheduledEventRecurrenceRuleFrequency"][keyof Constants["GuildScheduledEventRecurrenceRuleFrequency"]];
+  type GuildScheduledEventRecurrenceRuleWeekday = Constants["GuildScheduledEventRecurrenceRuleWeekday"][keyof Constants["GuildScheduledEventRecurrenceRuleWeekday"]];
+  type GuildScheduledEventRecurrenceRuleMonth = Constants["GuildScheduledEventRecurrenceRuleMonth"][keyof Constants["GuildScheduledEventRecurrenceRuleMonth"]];
   type GuildScheduledEventPrivacyLevel = Constants["GuildScheduledEventPrivacyLevel"][keyof Constants["GuildScheduledEventPrivacyLevel"]];
   type GuildScheduledEventStatus = Constants["GuildScheduledEventStatus"][keyof Constants["GuildScheduledEventStatus"]];
   type NSFWLevel = Constants["GuildNSFWLevels"][keyof Constants["GuildNSFWLevels"]];
@@ -1109,6 +1112,24 @@ declare namespace Dysnomia {
   interface GuildScheduledEventMetadata {
     location?: string;
   }
+  interface GuildScheduledEventRecurrenceRule {
+    start: number;
+    end: number | null;
+    frequency: GuildScheduledEventRecurrenceRuleFrequency;
+    interval: number;
+    byWeekday: GuildScheduledEventRecurrenceRuleWeekday[] | null;
+    byNWeekday: ({ n: number; day: GuildScheduledEventRecurrenceRuleWeekday })[] | null;
+    byMonth: GuildScheduledEventRecurrenceRuleMonth[] | null;
+    byMonthDay: number[] | null;
+    byYearDay: number[] | null;
+    count: number | null;
+  }
+  interface GuildScheduledEventRecurrenceRuleEdit extends Partial<Omit<GuildScheduledEventRecurrenceRule, "start">> {
+    byYearDay: never;
+    count: never;
+    end: never;
+    start?: Date;
+  }
   interface GuildScheduledEventEditOptionsBase<T extends GuildScheduledEventEntityTypes = GuildScheduledEventEntityTypes> {
     channelID?: T extends Constants["GuildScheduledEventEntityTypes"]["EXTERNAL"] ? null : string;
     description?: string | null;
@@ -1117,6 +1138,7 @@ declare namespace Dysnomia {
     image?: string;
     name?: string;
     privacyLevel?: GuildScheduledEventPrivacyLevel;
+    recurrenceRule?: GuildScheduledEventRecurrenceRuleEdit | null;
     scheduledEndTime?: T extends Constants["GuildScheduledEventEntityTypes"]["EXTERNAL"] ? Date : Date | undefined;
     scheduledStartTime?: Date;
     status?: GuildScheduledEventStatus;
@@ -2331,6 +2353,49 @@ declare namespace Dysnomia {
       SAFE:           2;
       AGE_RESTRICTED: 3;
     };
+    GuildScheduledEventEntityTypes: {
+      STAGE_INSTANCE: 1;
+      VOICE: 2;
+      EXTERNAL: 3;
+    };
+    GuildScheduledEventPrivacyLevel: {
+      GUILD_ONLY: 2;
+    };
+    GuildScheduledEventRecurrenceRuleFrequency: {
+      YEARLY:  0;
+      MONTHLY: 1;
+      WEEKLY:  2;
+      DAILY:   3;
+    };
+    GuildScheduledEventRecurrenceRuleWeekday: {
+      MONDAY:    0;
+      TUESDAY:   1;
+      WEDNESDAY: 2;
+      THURSDAY:  3;
+      FRIDAY:    4;
+      SATURDAY:  5;
+      SUNDAY:    6;
+    };
+    GuildScheduledEventRecurrenceRuleMonth: {
+      JANUARY:   1;
+      FEBRUARY:  2;
+      MARCH:     3;
+      APRIL:     4;
+      MAY:       5;
+      JUNE:      6;
+      JULY:      7;
+      AUGUST:    8;
+      SEPTEMBER: 9;
+      OCTOBER:   10;
+      NOVEMBER:  11;
+      DECEMBER:  12;
+    };
+    GuildScheduledEventStatus: {
+      SCHEDULED: 1;
+      ACTIVE: 2;
+      COMPLETED: 3;
+      CANCELED: 4;
+    };
     ImageFormats: [
       "jpg",
       "jpeg",
@@ -2700,20 +2765,6 @@ declare namespace Dysnomia {
       RESUMED:             9;
       CLIENTS_CONNECT:     11;
       CLIENT_DISCONNECT:   13;
-    };
-    GuildScheduledEventStatus: {
-      SCHEDULED: 1;
-      ACTIVE: 2;
-      COMPLETED: 3;
-      CANCELED: 4;
-    };
-    GuildScheduledEventEntityTypes: {
-      STAGE_INSTANCE: 1;
-      VOICE: 2;
-      EXTERNAL: 3;
-    };
-    GuildScheduledEventPrivacyLevel: {
-      GUILD_ONLY: 2;
     };
     WebhookTypes: {
       INCOMING:         1;
@@ -3509,6 +3560,7 @@ declare namespace Dysnomia {
     image?: string;
     name: string;
     privacyLevel: GuildScheduledEventPrivacyLevel;
+    recurrenceRule: GuildScheduledEventRecurrenceRule | null;
     scheduledEndTime: T extends Constants["GuildScheduledEventEntityTypes"]["EXTERNAL"] ? number : number | null;
     scheduledStartTime: number;
     status: GuildScheduledEventStatus;
